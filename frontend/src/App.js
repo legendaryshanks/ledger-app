@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import './App.css';
 
-export default function LedgerApp() {
+function App() {
   const [formData, setFormData] = useState({
     accountName: "",
     amountDue: "",
@@ -14,7 +14,7 @@ export default function LedgerApp() {
   const [selectedAccount, setSelectedAccount] = useState("");
   const [summary, setSummary] = useState(null);
   const [editingId, setEditingId] = useState(null);
-
+  const [accountOptions, setAccountOptions] = useState([]);
   const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
   const handleChange = (e) => {
@@ -31,6 +31,7 @@ export default function LedgerApp() {
     setFormData({ accountName: "", amountDue: "", amountReceived: "", reference: "", date: "" });
     setEditingId(null);
     fetchEntries();
+    fetchAccountOptions();
   };
 
   const fetchEntries = async () => {
@@ -43,6 +44,12 @@ export default function LedgerApp() {
     setSummary(response.data);
     const accEntries = await axios.get(`${API_URL}/ledger/${account}`);
     setEntries(accEntries.data);
+  };
+
+  const fetchAccountOptions = async () => {
+    const response = await axios.get(`${API_URL}/ledger`);
+    const accounts = [...new Set(response.data.map(e => e.accountName))];
+    setAccountOptions(accounts);
   };
 
   const handleEdit = (entry) => {
@@ -60,142 +67,84 @@ export default function LedgerApp() {
     const printWindow = window.open("", "_blank");
     const htmlContent = `
       <html>
-        <head>
-          <title>Ledger</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #000; padding: 8px; text-align: center; }
-            th { background-color: #f2f2f2; }
-          </style>
-        </head>
+        <head><title>Ledger</title></head>
         <body>
-          <h2>Ledger</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Account</th>
-                <th>Due</th>
-                <th>Received</th>
-                <th>Reference</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${entries.map(entry => `
-                <tr>
-                  <td>${entry.accountName}</td>
-                  <td>${entry.amountDue}</td>
-                  <td>${entry.amountReceived}</td>
-                  <td>${entry.reference}</td>
-                  <td>${entry.date?.slice(0, 10)}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-          <script>
-            window.onload = function() {
-              window.print();
-              window.onafterprint = function() { window.close(); };
-            }
-          </script>
+          <table border="1"><thead><tr><th>Account</th><th>Due</th><th>Received</th><th>Reference</th><th>Date</th></tr></thead><tbody>
+          ${entries.map(e => `<tr><td>${e.accountName}</td><td>${e.amountDue}</td><td>${e.amountReceived}</td><td>${e.reference}</td><td>${e.date?.slice(0,10)}</td></tr>`).join("")}
+          </tbody></table>
+          <script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};}</script>
         </body>
-      </html>
-    `;
+      </html>`;
     printWindow.document.write(htmlContent);
     printWindow.document.close();
   };
 
   const handleDownloadCSV = () => {
-    if (entries.length === 0) {
-      alert("No ledger entries to export.");
-      return;
-    }
-
+    if (!entries.length) return alert("No data.");
     const headers = ["Account Name,Amount Due,Amount Received,Reference,Date"];
-    const rows = entries.map(entry => (
-      `${entry.accountName},${entry.amountDue},${entry.amountReceived},${entry.reference},${entry.date?.slice(0, 10)}`
-    ));
-    const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\\n");
-    const encodedUri = encodeURI(csvContent);
+    const rows = entries.map(e => `${e.accountName},${e.amountDue},${e.amountReceived},${e.reference},${e.date?.slice(0,10)}`);
+    const csv = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n");
+    const uri = encodeURI(csv);
     const link = document.createElement("a");
-    link.href = encodedUri;
-    link.download = "ledger_data.csv";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    link.href = uri; link.download = "ledger_data.csv";
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
   useEffect(() => {
     fetchEntries();
+    fetchAccountOptions();
   }, []);
 
   return (
-<div className="container">
-    <div className="p-4 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Ledger Management</h1>
+    <div className="container">
+      <h1>Ledger Management</h1>
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4 mb-6">
-        <input name="accountName" placeholder="Account Name" className="p-2 border" value={formData.accountName} onChange={handleChange} required />
-        <input name="reference" placeholder="Reference" className="p-2 border" value={formData.reference} onChange={handleChange} />
-        <input name="amountDue" placeholder="Amount Due" type="number" className="p-2 border" value={formData.amountDue} onChange={handleChange} />
-        <input name="amountReceived" placeholder="Amount Received" type="number" className="p-2 border" value={formData.amountReceived} onChange={handleChange} />
-        <input name="date" type="date" className="p-2 border col-span-2" value={formData.date} onChange={handleChange} required />
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded col-span-2">{editingId ? "Update Entry" : "Add Entry"}</button>
+      <form onSubmit={handleSubmit}>
+        <select name="accountName" value={formData.accountName} onChange={handleChange} required>
+          <option value="">Select Account</option>
+          {accountOptions.map((opt, idx) => (
+            <option key={idx} value={opt}>{opt}</option>
+          ))}
+        </select>
+        <input name="reference" placeholder="Reference" value={formData.reference} onChange={handleChange} />
+        <input name="amountDue" type="number" placeholder="Amount Due" value={formData.amountDue} onChange={handleChange} />
+        <input name="amountReceived" type="number" placeholder="Amount Received" value={formData.amountReceived} onChange={handleChange} />
+        <input name="date" type="date" value={formData.date} onChange={handleChange} required />
+        <button type="submit">{editingId ? "Update Entry" : "Add Entry"}</button>
       </form>
 
-      <div className="mb-4">
-        <input
-          placeholder="Search account for summary..."
-          value={selectedAccount}
-          onChange={(e) => setSelectedAccount(e.target.value)}
-          onBlur={() => fetchSummary(selectedAccount)}
-          className="p-2 border w-full"
-        />
+      <select value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)} onBlur={() => fetchSummary(selectedAccount)}>
+        <option value="">View Account Summary</option>
+        {accountOptions.map((opt, idx) => (
+          <option key={idx} value={opt}>{opt}</option>
+        ))}
+      </select>
+
+      {summary && <div className="summary">
+        <h3>Summary for {summary.accountName}</h3>
+        <p>Total Due: ₹{summary.totalDue}</p>
+        <p>Total Received: ₹{summary.totalReceived}</p>
+        <p>Balance: ₹{summary.balance}</p>
+      </div>}
+
+      <div>
+        <button onClick={handlePrintLedger}>Print Ledger</button>
+        <button onClick={handleDownloadCSV}>Download CSV</button>
       </div>
 
-      {summary && (
-        <div className="bg-gray-100 p-4 rounded mb-4">
-          <h2 className="text-lg font-semibold">Summary for {summary.accountName}</h2>
-          <p>Total Due: ₹{summary.totalDue}</p>
-          <p>Total Received: ₹{summary.totalReceived}</p>
-          <p>Balance: ₹{summary.balance}</p>
-        </div>
-      )}
-
-      <div className="flex gap-4 mb-4">
-        <button onClick={handlePrintLedger} className="bg-green-600 text-white px-4 py-2 rounded">Print Ledger</button>
-        <button onClick={handleDownloadCSV} className="bg-purple-600 text-white px-4 py-2 rounded">Download CSV</button>
-      </div>
-
-      <table className="w-full border">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="p-2 border">Account</th>
-            <th className="p-2 border">Due</th>
-            <th className="p-2 border">Received</th>
-            <th className="p-2 border">Reference</th>
-            <th className="p-2 border">Date</th>
-            <th className="p-2 border">Actions</th>
-          </tr>
-        </thead>
+      <table>
+        <thead><tr><th>Account</th><th>Due</th><th>Received</th><th>Reference</th><th>Date</th><th>Action</th></tr></thead>
         <tbody>
-          {entries.map((entry, index) => (
-            <tr key={index} className="text-center">
-              <td className="p-2 border">{entry.accountName}</td>
-              <td className="p-2 border">₹{entry.amountDue}</td>
-              <td className="p-2 border">₹{entry.amountReceived}</td>
-              <td className="p-2 border">{entry.reference}</td>
-              <td className="p-2 border">{entry.date?.slice(0, 10)}</td>
-              <td className="p-2 border">
-                <button onClick={() => handleEdit(entry)} className="bg-yellow-400 px-3 py-1 rounded text-white">Edit</button>
-              </td>
+          {entries.map((e, i) => (
+            <tr key={i}>
+              <td>{e.accountName}</td><td>{e.amountDue}</td><td>{e.amountReceived}</td><td>{e.reference}</td><td>{e.date?.slice(0,10)}</td>
+              <td><button onClick={() => handleEdit(e)}>Edit</button></td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
-</div>
   );
-};
-//export default App;
+}
+
+export default App;
