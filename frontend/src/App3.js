@@ -86,20 +86,12 @@ function App() {
       <h1>Ledger Management</h1>
 
       <form onSubmit={handleSubmit}>
-        <input
-          list="accountOptions"
-          name="accountName"
-          placeholder="Enter or select account"
-          value={formData.accountName}
-          onChange={handleChange}
-          required
-        />
-        <datalist id="accountOptions">
+        <select name="accountName" value={formData.accountName} onChange={handleChange} required>
+          <option value="">Select Account</option>
           {accountOptions.map((name, idx) => (
-            <option key={idx} value={name} />
+            <option key={idx} value={name}>{name}</option>
           ))}
-        </datalist>
-
+        </select>
         <input name="reference" placeholder="Reference" value={formData.reference} onChange={handleChange} />
         <input name="amountDue" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="Amount Due" value={formData.amountDue} onChange={handleChange} />
         <input name="amountReceived" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="Amount Received" value={formData.amountReceived} onChange={handleChange} />
