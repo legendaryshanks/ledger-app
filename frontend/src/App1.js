@@ -11,10 +11,10 @@ function App() {
     date: ""
   });
   const [entries, setEntries] = useState([]);
-  const [accountOptions, setAccountOptions] = useState([]);
   const [selectedAccount, setSelectedAccount] = useState("");
   const [summary, setSummary] = useState(null);
   const [editingId, setEditingId] = useState(null);
+  const [accountOptions, setAccountOptions] = useState([]);
   const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
   const handleChange = (e) => {
@@ -31,43 +31,52 @@ function App() {
     setFormData({ accountName: "", amountDue: "", amountReceived: "", reference: "", date: "" });
     setEditingId(null);
     fetchEntries();
+    fetchAccountOptions();
   };
 
   const fetchEntries = async () => {
-    const res = await axios.get(`${API_URL}/ledger`);
-    setEntries(res.data);
+    const response = await axios.get(`${API_URL}/ledger`);
+    setEntries(response.data);
   };
 
-  useEffect(() => {
-    fetchEntries();
-  }, []);
-
-  useEffect(() => {
-    const uniqueAccounts = [...new Set(entries.map(e => e.accountName))];
-    setAccountOptions(uniqueAccounts);
-  }, [entries]);
-
   const fetchSummary = async (account) => {
-    if (!account) return;
-    const sum = await axios.get(`${API_URL}/ledger/summary/${account}`);
-    setSummary(sum.data);
+    const response = await axios.get(`${API_URL}/ledger/summary/${account}`);
+    setSummary(response.data);
     const accEntries = await axios.get(`${API_URL}/ledger/${account}`);
     setEntries(accEntries.data);
   };
 
+  const fetchAccountOptions = async () => {
+    const response = await axios.get(`${API_URL}/ledger`);
+    const accounts = [...new Set(response.data.map(e => e.accountName))];
+    setAccountOptions(accounts);
+  };
+
   const handleEdit = (entry) => {
-    setFormData({ ...entry, date: entry.date.slice(0, 10) });
+    setFormData({
+      accountName: entry.accountName,
+      amountDue: entry.amountDue,
+      amountReceived: entry.amountReceived,
+      reference: entry.reference,
+      date: entry.date.slice(0, 10)
+    });
     setEditingId(entry._id);
   };
 
   const handlePrintLedger = () => {
-    const win = window.open("", "_blank");
-    const content = `
-    <html><head><title>Ledger</title></head><body>
-    <table border="1"><thead><tr><th>Account</th><th>Due</th><th>Received</th><th>Reference</th><th>Date</th></tr></thead><tbody>
-    ${entries.map(e => `<tr><td>${e.accountName}</td><td>${e.amountDue}</td><td>${e.amountReceived}</td><td>${e.reference}</td><td>${e.date?.slice(0,10)}</td></tr>`).join("")}
-    </tbody></table><script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};}</script></body></html>`;
-    win.document.write(content); win.document.close();
+    const printWindow = window.open("", "_blank");
+    const htmlContent = `
+      <html>
+        <head><title>Ledger</title></head>
+        <body>
+          <table border="1"><thead><tr><th>Account</th><th>Due</th><th>Received</th><th>Reference</th><th>Date</th></tr></thead><tbody>
+          ${entries.map(e => `<tr><td>${e.accountName}</td><td>${e.amountDue}</td><td>${e.amountReceived}</td><td>${e.reference}</td><td>${e.date?.slice(0,10)}</td></tr>`).join("")}
+          </tbody></table>
+          <script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};}</script>
+        </body>
+      </html>`;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   const handleDownloadCSV = () => {
@@ -81,6 +90,11 @@ function App() {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
+  useEffect(() => {
+    fetchEntries();
+    fetchAccountOptions();
+  }, []);
+
   return (
     <div className="container">
       <h1>Ledger Management</h1>
@@ -88,8 +102,8 @@ function App() {
       <form onSubmit={handleSubmit}>
         <select name="accountName" value={formData.accountName} onChange={handleChange} required>
           <option value="">Select Account</option>
-          {accountOptions.map((name, idx) => (
-            <option key={idx} value={name}>{name}</option>
+          {accountOptions.map((opt, idx) => (
+            <option key={idx} value={opt}>{opt}</option>
           ))}
         </select>
         <input name="reference" placeholder="Reference" value={formData.reference} onChange={handleChange} />
@@ -99,16 +113,10 @@ function App() {
         <button type="submit">{editingId ? "Update Entry" : "Add Entry"}</button>
       </form>
 
-      <select
-        value={selectedAccount}
-        onChange={(e) => {
-          setSelectedAccount(e.target.value);
-          fetchSummary(e.target.value);
-        }}
-      >
-        <option value="">Select account for summary</option>
-        {accountOptions.map((name, idx) => (
-          <option key={idx} value={name}>{name}</option>
+      <select value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)} onBlur={() => fetchSummary(selectedAccount)}>
+        <option value="">View Account Summary</option>
+        {accountOptions.map((opt, idx) => (
+          <option key={idx} value={opt}>{opt}</option>
         ))}
       </select>
 
