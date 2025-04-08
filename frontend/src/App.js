@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import Papa from "papaparse";
 import './App.css';
 
 function App() {
@@ -81,6 +82,21 @@ function App() {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
+  const handleCSVUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const cleaned = results.data.filter(row => row.accountName);
+        await axios.post(`${API_URL}/ledger/bulk`, cleaned);
+        alert(`${cleaned.length} entries uploaded`);
+        fetchEntries();
+      }
+    });
+  };
+
   return (
     <div className="container">
       <h1>Ledger Management</h1>
@@ -106,6 +122,11 @@ function App() {
         <input name="date" type="date" value={formData.date} onChange={handleChange} required />
         <button type="submit">{editingId ? "Update Entry" : "Add Entry"}</button>
       </form>
+
+      <div style={{ margin: '20px 0' }}>
+        <label><strong>📥 Upload CSV (Bulk Entries): </strong></label>
+        <input type="file" accept=".csv" onChange={handleCSVUpload} />
+      </div>
 
       <select
         value={selectedAccount}
