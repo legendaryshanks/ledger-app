@@ -93,8 +93,8 @@ function App() {
           ))}
         </select>
         <input name="reference" placeholder="Reference" value={formData.reference} onChange={handleChange} />
-        <input name="amountDue" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="Amount Due" value={formData.amountDue} onChange={handleChange} />
-        <input name="amountReceived" type="text" inputMode="numeric" pattern="[0-9]*" placeholder="Amount Received" value={formData.amountReceived} onChange={handleChange} />
+        <input name="amountDue" type="number" placeholder="Amount Due" value={formData.amountDue} onChange={handleChange} />
+        <input name="amountReceived" type="number" placeholder="Amount Received" value={formData.amountReceived} onChange={handleChange} />
         <input name="date" type="date" value={formData.date} onChange={handleChange} required />
         <button type="submit">{editingId ? "Update Entry" : "Add Entry"}</button>
       </form>
