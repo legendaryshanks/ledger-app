@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import './App.css';
 
 export default function LedgerApp() {
   const [formData, setFormData] = useState({
@@ -130,6 +131,7 @@ export default function LedgerApp() {
   }, []);
 
   return (
+<div className="container">
     <div className="p-4 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">Ledger Management</h1>
 
@@ -193,6 +195,7 @@ export default function LedgerApp() {
         </tbody>
       </table>
     </div>
+</div>
   );
 };
 //export default App;
